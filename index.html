@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Vendas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #f4f4f9;
+        }
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .input-field {
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .table-container {
+            margin-top: 20px;
+            width: 100%;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        .total-container {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+        }
+        @media (max-width: 768px) {
+            table, th, td {
+                font-size: 12px;
+            }
+        }
+    </style>
+    <!-- Incluindo a biblioteca SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<header>
+    <h1>Controle de Vendas</h1>
+</header>
+
+<div class="container">
+    <div>
+        <label for="nome-cliente">Nome do Cliente:</label>
+        <input type="text" id="nome-cliente" class="input-field" placeholder="Digite o nome do cliente">
+
+        <label for="produto">Produto:</label>
+        <input type="text" id="produto" class="input-field" placeholder="Digite o nome do produto">
+
+        <label for="tipo">Tipo (Quantidade ou Kg):</label>
+        <select id="tipo" class="input-field">
+            <option value="quantidade">Quantidade</option>
+            <option value="kg">Kg</option>
+        </select>
+
+        <label for="quantidade">Quantidade/Peso:</label>
+        <input type="number" id="quantidade" class="input-field" value="10">
+
+        <label for="preco">Preço por Unidade/Kg:</label>
+        <input type="number" id="preco" class="input-field" value="10">
+
+        <button id="add-venda">Adicionar Venda</button>
+    </div>
+
+    <div class="table-container">
+        <table id="tabela-vendas">
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Quantidade</th>
+                    <th>Valor Unitário</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="total-container">
+        <span>Total do Dia: R$ <span id="total-dia">0.00</span></span>
+        <button id="limpar-dados">Limpar Cache</button>
+    </div>
+
+    <div class="footer">
+        <button id="imprimir">Exportar para Excel</button>
+        <button id="whatsapp">Enviar para WhatsApp</button>
+    </div>
+</div>
+
+<script>
+    const addVendaBtn = document.getElementById('add-venda');
+    const limparDadosBtn = document.getElementById('limpar-dados');
+    const imprimirBtn = document.getElementById('imprimir');
+    const whatsappBtn = document.getElementById('whatsapp');
+    const tabelaVendas = document.getElementById('tabela-vendas').getElementsByTagName('tbody')[0];
+    const totalDiaElement = document.getElementById('total-dia');
+
+    let vendas = JSON.parse(localStorage.getItem('vendas')) || [];
+    let totalDia = parseFloat(localStorage.getItem('totalDia')) || 0;
+
+    // Função para atualizar a tabela de vendas
+    function atualizarTabela() {
+        tabelaVendas.innerHTML = '';
+        vendas.forEach((venda) => {
+            const row = tabelaVendas.insertRow();
+            row.insertCell(0).textContent = venda.produto;
+            row.insertCell(1).textContent = venda.quantidade;
+            row.insertCell(2).textContent = `R$ ${venda.preco.toFixed(2)}`;
+            row.insertCell(3).textContent = `R$ ${(venda.quantidade * venda.preco).toFixed(2)}`;
+        });
+        totalDiaElement.textContent = totalDia.toFixed(2);
+    }
+
+    // Função para adicionar uma venda
+    addVendaBtn.addEventListener('click', () => {
+        const nomeCliente = document.getElementById('nome-cliente').value;
+        const produto = document.getElementById('produto').value;
+        const quantidade = parseFloat(document.getElementById('quantidade').value);
+        const preco = parseFloat(document.getElementById('preco').value);
+        const tipo = document.getElementById('tipo').value;
+
+        if (nomeCliente && produto && quantidade && preco) {
+            const venda = {
+                cliente: nomeCliente,
+                produto,
+                quantidade,
+                preco,
+                tipo
+            };
+            vendas.push(venda);
+            totalDia += quantidade * preco;
+
+            localStorage.setItem('vendas', JSON.stringify(vendas));
+            localStorage.setItem('totalDia', totalDia);
+
+            atualizarTabela();
+        } else {
+            alert("Preencha todos os campos corretamente.");
+        }
+    });
+
+    // Função para limpar os dados
+    limparDadosBtn.addEventListener('click', () => {
+        localStorage.removeItem('vendas');
+        localStorage.removeItem('totalDia');
+        vendas = [];
+        totalDia = 0;
+        atualizarTabela();
+    });
+
+    // Função para exportar os dados para Excel
+    imprimirBtn.addEventListener('click', () => {
+        const nomeCliente = document.getElementById('nome-cliente').value;
+        if (!nomeCliente) {
+            alert("Informe o nome do cliente antes de exportar.");
+            return;
+        }
+
+        const dadosCliente = vendas.filter(venda => venda.cliente === nomeCliente);
+        if (dadosCliente.length === 0) {
+            alert("Não há vendas registradas para este cliente.");
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(dadosCliente.map(venda => ({
+            Produto: venda.produto,
+            Quantidade: `${venda.quantidade} ${venda.tipo}`,
+            'Valor Unitário': `R$ ${venda.preco.toFixed(2)}`,
+            Total: `R$ ${(venda.quantidade * venda.preco).toFixed(2)}`
+        })));
+
+        XLSX.utils.book_append_sheet(wb, ws, `Vendas - ${nomeCliente}`);
+        XLSX.writeFile(wb, `Vendas_${nomeCliente}.xlsx`);
+    });
+
+    // Função para enviar para o WhatsApp
+    whatsappBtn.addEventListener('click', () => {
+        const nomeCliente = document.getElementById('nome-cliente').value;
+        if (!nomeCliente) {
+            alert("Informe o nome do cliente antes de enviar.");
+            return;
+        }
+
+        let mensagem = `Vendas do Cliente ${nomeCliente}:\n${vendas.filter(venda => venda.cliente === nomeCliente).map(venda => `Produto: ${venda.produto}\nQuantidade: ${venda.quantidade} ${venda.tipo}\nPreço: R$ ${venda.preco.toFixed(2)}\nTotal: R$ ${(venda.quantidade * venda.preco).toFixed(2)}\n`).join('\n')}Total do Dia: R$ ${totalDia.toFixed(2)}`;
+        const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
+        window.open(url, '_blank');
+    });
+
+    // Atualizar tabela ao carregar a página
+    atualizarTabela();
+</script>
+
+</body>
+</html>
